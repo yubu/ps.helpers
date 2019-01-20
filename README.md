@@ -3,8 +3,10 @@
 - Check-ModuleUpdates.ps1: Checks updates for modules
 Creates sched task if needed
 ```powershell
-. C:\Helpers\Check-ModuleUpdates.ps1
-Functions: Check-ModuleUpdates
+. C:\Helpers\Check-moduleUpdates.ps1
+Functions: Check-moduleUpdates
+Check-moduleUpdates -createSchedTask
+Check-moduleUpdates -all -sendToast 
 ```
 - Convert-EpochTime.ps1: Converts from/to epoch/UNIX time
 ```powershell

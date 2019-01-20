@@ -1,6 +1,7 @@
 # Helpers
 ## Files
 - Check-ModuleUpdates.ps1: Checks updates for modules
+Creates sched task if needed
 ```powershell
 . C:\Helpers\Check-ModuleUpdates.ps1
 Functions: Check-ModuleUpdates

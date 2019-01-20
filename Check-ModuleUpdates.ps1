@@ -1,12 +1,12 @@
 function Check-moduleUpdates {
 	<#
 	.Synopsis
-		Check poweshell modules for updates
+		Check powershell modules for updates
 	.Description
 		Check powershell modules for updates
 	.Example
 		Check-moduleUpdates
-		Check modules in use for updates
+		Check imported modules for updates
 	.Example
 		Check-moduleUpdates -all
 		Check all available modules for updates 
@@ -15,7 +15,7 @@ function Check-moduleUpdates {
 		Check module PowershellGet for updates
 	.Example
 		Check-moduleUpdates -update -skipUpdate "PSReadLine"
-		Will update all modules in use except module PSReadLine
+		Will update all imported modules except module PSReadLine
 	.Example
 		Check-moduleUpdates -all -update
 		Will try to update all available modules
@@ -24,25 +24,104 @@ function Check-moduleUpdates {
 		Will update all modules available except modules PSReadLine and PSWindowsUpdate
 	.Example
 		Check-moduleUpdates -all -skipUpdate "VMware.VimAutomation.Srm|VMware.VimAutomation.Storage"
-		For PowerCLI only VMware.PowerCLI should be installed	
+		For PowerCLI, only VMware.PowerCLI should be installed	
+	.Example
+		Check-moduleUpdates -all -sendToast
+		Will check all modules for updates and send toast notification to Action center
+	.Example
+		Check-moduleUpdates -createSchedTask
+		Will create scheduled task to run the script every Friday at 5am. SchedTask will be created for powershell edition, the command was ran from
 	#>
 	[CmdletBinding()]
 	[Alias("cmu")]
-	param([switch]$update,[switch]$all,$module="",$skipUpdate="")
+	param([switch]$update,[switch]$all,[switch]$sendToast,[switch]$createSchedTask,$module="",$skipUpdate="",$schedTaskScriptPath="")
 	
-	$exclude="bitstransfer"
-	[string[]]$changelist=""
-	
-	if ($all) {get-module -ListAvailable | ? name -notmatch "$exclude" | ? name -match "$module" | select -Unique -pv localModule | %{"--> $_ --> $($_.author)", $_.version.ToString(), (find-module -name $_ -ea silent | %{if ([version]$_.version -gt $localModule.version) {$_.version + "  <--"; [array]$changelist+=$localModule.name} else {($_.version).tostring()} })}}
-	else {get-module | ? name -notmatch "$exclude" | ? name -match "$module" | select -Unique -pv localModule | %{"--> $_ --> $($_.author)", $_.version.ToString(), (find-module -name $_ -ea silent | %{if ([version]$_.version -gt $localModule.version) {$_.version.ToString() + "  <--"; [array]$changelist+=$localModule.name} else {$_.version.ToString()} })}}
-	
-	$changelist=$changelist | ?{$_}
-	if ($skipUpdate) {$changelist=$changelist | ?{$_ -notmatch "$skipUpdate"} | ?{$_}}
+	begin {
+		$exclude="excludePermanetSomethingIfNeeded"
+		[string[]]$changelist=""
+		$schedTaskScriptPath=$psScriptRoot+"\"+$PSCmdlet.MyInvocation.MyCommand.Name+".ps1"
+		
+		# Set toast
+		[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+		[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
+		$ToastXml=[Windows.Data.Xml.Dom.XmlDocument]::new()
+		# Get-StartApps  | sort name
+		$appID='{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
+	}
 
-	if (!$changelist -and !$skipUpdate) {write-host "All is up to date." -f green}
-	elseif (!$changelist -and $skipUpdate) {write-host "All is up to date." -f green; write-host "Module(s) skipped: " -f green -nonewline; write-host "$skipUpdate" -f yellow}
-	elseif ($changelist -and $skipUpdate) {Write-Host "Module(s) to update: " -f yellow -nonewline; Write-Host "$changelist" -f red; write-host "Module(s) skipped: " -f green -nonewline; write-host "$skipUpdate" -f yellow}
-	elseif ($update -and $skipUpdate -and !$changelist) {write-host "All is up to date." -f green; write-host "Module(s) skipped: " -f green -nonewline; write-host "$skipUpdate" -f yellow}
-	else {Write-Host "Module(s) to update: " -f yellow -nonewline; Write-Host "$changelist" -f red}
-	if ($update -and $changelist) {Write-Output "`nWill update: $changelist ..."; install-module $changelist -force -allowClobber}
+	Process {
+		# Create sched task
+		if ($createSchedTask) {
+			$actionArgCommandString="-command . $SchedTaskScriptPath; check-moduleupdates -all -sendToast"
+			if ($PSVersionTable.PSEdition -eq "Core") {
+				$splatNewSchT=@{
+					Execute="pwsh"
+					Argument=$actionArgCommandString
+				}
+				$splatArgs=@{
+					Action=New-ScheduledTaskAction @splatNewSchT
+					Trigger=New-ScheduledTaskTrigger -Weekly -DaysOfWeek Friday -At 5am
+					TaskName="RunModuleUpdateScriptCore"
+				}
+			}
+			elseif ($PSVersionTable.PSEdition -eq "Desktop") {
+				$splatNewSchT=@{
+					Execute="powershell"
+					Argument=$actionArgCommandString
+				}
+				$splatArgs=@{
+					Action=New-ScheduledTaskAction @splatNewSchT
+					Trigger=New-ScheduledTaskTrigger -Weekly -DaysOfWeek Friday -At 5am
+					TaskName="RunModuleUpdateScript"
+				}
+			}
+			Register-ScheduledTask @splatArgs
+			return
+		}
+		
+		if ($all) {get-module -ListAvailable | ? name -notmatch "$exclude" | ? name -match "$module" | select -Unique -pv localModule | %{"--> $_ --> $($_.author)", $_.version.ToString(), (find-module -name $_ -ea silent | %{if ([version]$_.version -gt $localModule.version) {$_.version + ' <--'; [array]$changelist+=$localModule.name} else {($_.version).tostring()} })}}
+		else {get-module | ? name -notmatch "$exclude" | ? name -match "$module" | select -Unique -pv localModule | %{"--> $_ --> $($_.author)", $_.version.ToString(), (find-module -name $_ -ea silent | %{if ([version]$_.version -gt $localModule.version) {$_.version.ToString() + '  <--'; [array]$changelist+=$localModule.name} else {$_.version.ToString()} })}}
+		
+		$changelist=$changelist | ?{$_}
+		if ($skipUpdate) {$changelist=$changelist | ?{$_ -notmatch "$skipUpdate"} | ?{$_}}
+
+		if (!$changelist -and !$skipUpdate) {write-host "All is up to date." -f green}
+		elseif (!$changelist -and $skipUpdate) {write-host "All is up to date." -f green; write-host "Module(s) skipped: " -f green -nonewline; write-host "$skipUpdate" -f yellow}
+		elseif ($changelist -and $skipUpdate) {Write-Host "Module(s) to update: " -f yellow -nonewline; Write-Host "$changelist" -f red; write-host "Module(s) skipped: " -f green -nonewline; write-host "$skipUpdate" -f yellow}
+		elseif ($update -and $skipUpdate -and !$changelist) {write-host "All is up to date." -f green; write-host "Module(s) skipped: " -f green -nonewline; write-host "$skipUpdate" -f yellow}
+		else {Write-Host "Module(s) to update: " -f yellow -nonewline; Write-Host "$changelist" -f red}
+		if ($update -and $changelist) {Write-Output "`nWill update: $changelist ..."; install-module $changelist -force -allowClobber}
+		
+		# Send toast
+		if ($sendToast -and $changelist) {
+			if ($PSVersionTable.PSEdition -eq "Core") {
+				$XmlString = @"
+				<toast>
+				<visual>
+					<binding template="ToastGeneric">
+					<text>Module updates (PSCore):</text>
+					<text>$changelist</text>
+					</binding>
+				</visual>
+				</toast>
+"@
+			}
+			elseif ($PSVersionTable.PSEdition -eq "Desktop") {
+				$XmlString = @"
+				<toast>
+				<visual>
+					<binding template="ToastGeneric">
+					<text>Module updates:</text>
+					<text>$changelist</text>
+				</binding>
+				</visual>
+				</toast>
+"@
+			}
+			$ToastXml.LoadXml($XmlString)
+			$toast=[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appID)
+			$toast.Show($ToastXml)
+		}
+	
+	}
 }

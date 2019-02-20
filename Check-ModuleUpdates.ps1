@@ -26,6 +26,12 @@ function Check-moduleUpdates {
 		Check-moduleUpdates -all -skipUpdate "VMware.VimAutomation.Srm|VMware.VimAutomation.Storage"
 		For PowerCLI, only VMware.PowerCLI should be installed	
 	.Example
+		Check-moduleUpdates -allowPrerelease -all
+		Will check also prerelease versions
+	.Example
+		Check-moduleUpdates -allowPrerelease -update "PSReadLine"
+		Will update PSReadLine to higher prerelease
+	.Example
 		Check-moduleUpdates -all -sendToast
 		Will check all modules for updates and send toast notification to Action center
 	.Example
@@ -34,7 +40,7 @@ function Check-moduleUpdates {
 	#>
 	[CmdletBinding()]
 	[Alias("cmu")]
-	param([switch]$update,[switch]$all,[switch]$sendToast,[switch]$createSchedTask,$module="",$skipUpdate="",$schedTaskScriptPath="")
+	param([switch]$update,[switch]$all,[switch]$sendToast,[switch]$createSchedTask,$module="",$skipUpdate="",$schedTaskScriptPath="",[switch]$allowPrerelease)
 	
 	begin {
 		$exclude="excludePermanetSomethingIfNeeded"
@@ -79,8 +85,25 @@ function Check-moduleUpdates {
 			return
 		}
 		
-		if ($all) {get-module -ListAvailable | ? name -notmatch "$exclude" | ? name -match "$module" | select -Unique -pv localModule | %{"--> $_ --> $($_.author)", $_.version.ToString(), (find-module -name $_ -ea silent | %{if ([version]$_.version -gt $localModule.version) {$_.version + ' <--'; [array]$changelist+=$localModule.name} else {($_.version).tostring()} })}}
-		else {get-module | ? name -notmatch "$exclude" | ? name -match "$module" | select -Unique -pv localModule | %{"--> $_ --> $($_.author)", $_.version.ToString(), (find-module -name $_ -ea silent | %{if ([version]$_.version -gt $localModule.version) {$_.version.ToString() + '  <--'; [array]$changelist+=$localModule.name} else {$_.version.ToString()} })}}
+		if ($all) {$gModParam=@{ListAvailable=$true}} else {$gModParam=@{ListAvailable=$false}}
+			if ($allowPrerelease) { 
+				get-module @gModParam | ? name -notmatch "$exclude" | ? name -match "$module" | select -Unique -pv localModule | %{
+					"--> $_ --> $($_.author)", $(
+						if ($_.PrivateData.psdata.prerelease) {$localPrerel=$_.version.ToString()+"-"+$_.PrivateData.psdata.prerelease;"$localPrerel"} 
+						else {$_.version.toString()}), 
+						(
+							find-module -name $_ -ea silent -AllowPrerelease | %{
+								if ($localPrerel) {
+									if (diff $_.version ($localPrerel)) {$_.version.ToString() + " <--"; [array]$changelist+=$localModule.name} else {($_.version).tostring()}
+									$localPrerel=""
+								}
+								elseif ($_.version -match '[a-zA-Z]') {if (diff $_.version $localModule.version.toString()) {$_.version.ToString() + " <--"; [array]$changelist+=$localModule.name} else {($_.version).tostring()}}
+								else {if ([version]$_.version -gt $localModule.version) {$_.version + ' <--'; [array]$changelist+=$localModule.name} else {($_.version).tostring()} }
+							}
+						)
+				} 
+			}
+			else { get-module @gModParam | ? name -notmatch "$exclude" | ? name -match "$module" | select -Unique -pv localModule | %{"--> $_ --> $($_.author)", $_.version.ToString(), (find-module -name $_ -ea silent | %{if ([version]$_.version -gt $localModule.version) {$_.version + ' <--'; [array]$changelist+=$localModule.name} else {($_.version).tostring()} })} }
 		
 		$changelist=$changelist | ?{$_}
 		if ($skipUpdate) {$changelist=$changelist | ?{$_ -notmatch "$skipUpdate"} | ?{$_}}
@@ -90,7 +113,10 @@ function Check-moduleUpdates {
 		elseif ($changelist -and $skipUpdate) {Write-Host "Module(s) to update: " -f yellow -nonewline; Write-Host "$changelist" -f red; write-host "Module(s) skipped: " -f green -nonewline; write-host "$skipUpdate" -f yellow}
 		elseif ($update -and $skipUpdate -and !$changelist) {write-host "All is up to date." -f green; write-host "Module(s) skipped: " -f green -nonewline; write-host "$skipUpdate" -f yellow}
 		else {Write-Host "Module(s) to update: " -f yellow -nonewline; Write-Host "$changelist" -f red}
-		if ($update -and $changelist) {Write-Output "`nWill update: $changelist ..."; install-module $changelist -force -allowClobber}
+		if ($update -and $changelist -and $allowPrerelease) {
+			Write-Output "`nWill update: $changelist ..."; foreach ($modName in $changelist) {install-module $modName -force -allowClobber -AllowPrerelease}
+		}
+		elseif ($update -and $changelist) {Write-Output "`nWill update: $changelist ..."; install-module $changelist -force -allowClobber}
 		
 		# Send toast
 		if ($sendToast -and $changelist) {

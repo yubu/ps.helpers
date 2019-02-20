@@ -42,6 +42,7 @@ function Get-WinKeyHelp {
         Windows key + T	Move right on Toolbar icons.
         Windows key + Shift + T	Move left on Toolbar icons.
         Windows key + U	Open Ease of Access Center.
+        Windows key + V	Open clipboard history.
         Windows key + W	Windows Ink Workspace.
         Windows key + X	Open Quick Link menu.
         Windows key + Number	Open the app pinned to the taskbar in the position indicated by the number.

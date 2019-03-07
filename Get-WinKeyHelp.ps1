@@ -68,7 +68,7 @@ function Get-WinKeyHelp {
         Ctrl + Shift + Esc	Open Task Manager.
         Alt + Tab	Switch between open apps.
         Alt + Left arrow key	Go back.
-        Alt + Right arrow key	Go foward.
+        Alt + Right arrow key	Go forward.
         Alt + Page Up	Move up one screen.
         Alt + Page down	Move down one screen.
         Ctrl + Alt + Tab	View open apps.

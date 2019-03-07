@@ -23,10 +23,10 @@ Functions: Get-OneNoteKeyBindingsHelp
 . C:\Helpers\Get-VScodeKeybindings.ps1
 Functions: Get-VScodeKeybindings
 ```
-- Get-WinConrolPanelHelp.ps1: Windows control.exe commands
+- Get-WinControlPanelHelp.ps1: Windows control.exe commands
 ```powershell
-. C:\Helpers\Get-WinConrolPanelHelp.ps1
-Functions: Get-WinConrolPanelHelp
+. C:\Helpers\Get-WinControlPanelHelp.ps1
+Functions: Get-WinControlPanelHelp
 ```
 - Get-WinKeyHelp.ps1: Windows WinKey keybindings
 ```powershell

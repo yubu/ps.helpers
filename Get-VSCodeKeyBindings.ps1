@@ -9,7 +9,7 @@ function Get-VSCodeKeyBindings {
   .Example 
 	  Get-VSCodeKeyBindings | ? Command -match open
   .Example
-	  Get-VSCodeKeyBindings | ? Catrgory -match navi
+	  Get-VSCodeKeyBindings | ? Category -match navi
   .Example
 	   Get-VSCodeKeyBindings | oss | sls open | Out-ColorMatchInfo
   .Example

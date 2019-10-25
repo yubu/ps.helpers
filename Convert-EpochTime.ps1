@@ -47,19 +47,39 @@ Function convertTo-Epoch {
     .Example
         convertTo-epoch (get-date).ToUniversalTime() | convertFrom-epoch
     .Example
-        convertTo-epoch ((get-date).AddHours(2)    
+        convertTo-epoch ((get-date).AddHours(2))    
 	#>
 	[CmdletBinding()]
 	param (
 		[Parameter(ValueFromPipeline=$true)]$date
 	)
 	
-	if (!$psboundparameters.count) {
-		if (gcm rmel -ea ignore) {help -ex $PSCmdlet.MyInvocation.MyCommand.Name  | Out-String | Remove-EmptyLines; return}
-		else {help -ex $PSCmdlet.MyInvocation.MyCommand.Name; return}
+	process {
+		if (!$psboundparameters.count) {
+			if (gcm rmel -ea ignore) {help -ex $PSCmdlet.MyInvocation.MyCommand.Name  | Out-String | Remove-EmptyLines; return}
+			else {help -ex $PSCmdlet.MyInvocation.MyCommand.Name; return}
+		}
+		if ($date.GetType().name -eq "string" ) {
+			try {[void](get-date -date $date)}
+			catch {
+				Write-Host "`nERROR: $_" -f red
+				Write-Host "`nDateTime formatting defaults on this system:" -f cyan
+				get-culture | select -ExpandProperty DateTimeFormat | select *pattern*,@{n='ShortDateTimePattern';e={$_.ShortDatePattern+" "+ $_.ShortTimePattern}}
+				""
+				Write-Host "For all supported formats on this system run PS C:\>intl.cpl" -f magenta
+				""
+				Write-Host "For further DateTime formatting information look here:" -f cyan
+				"https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/get-date?view=powershell-5.1"
+				"https://docs.microsoft.com/en-us/dotnet/standard/base-types/custom-date-and-time-format-strings?view=netframework-4.8"
+				""
+				if (gcm rmel -ea ignore) {help -ex $PSCmdlet.MyInvocation.MyCommand.Name  | Out-String | Remove-EmptyLines}
+				else {help -ex $PSCmdlet.MyInvocation.MyCommand.Name}
+				return
+			}
+		}
+		else {}
+		
+		$date=$date -f "mm/dd/yyyy hh:mm"
+		(New-TimeSpan -Start (Get-Date -Date "01/01/1970") -End $date).TotalSeconds
 	}
-	else {}
-	
-    $date=$date -f "mm/dd/yyyy hh:mm"
-	(New-TimeSpan -Start (Get-Date -Date "01/01/1970") -End $date).TotalSeconds
 } 

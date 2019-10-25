@@ -56,7 +56,7 @@ Function convertTo-Epoch {
 	
 	process {
 		if (!$psboundparameters.count) {
-			if (gcm rmel -ea ignore) {help -ex $PSCmdlet.MyInvocation.MyCommand.Name  | Out-String | Remove-EmptyLines; return}
+			if (gcm rmel -ea ignore) {help -ex $PSCmdlet.MyInvocation.MyCommand.Name | Out-String | Remove-EmptyLines; return}
 			else {help -ex $PSCmdlet.MyInvocation.MyCommand.Name; return}
 		}
 		if ($date.GetType().name -eq "string" ) {
@@ -72,7 +72,7 @@ Function convertTo-Epoch {
 				"https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/get-date?view=powershell-5.1"
 				"https://docs.microsoft.com/en-us/dotnet/standard/base-types/custom-date-and-time-format-strings?view=netframework-4.8"
 				""
-				if (gcm rmel -ea ignore) {help -ex $PSCmdlet.MyInvocation.MyCommand.Name  | Out-String | Remove-EmptyLines}
+				if (gcm rmel -ea ignore) {help -ex $PSCmdlet.MyInvocation.MyCommand.Name | Out-String | Remove-EmptyLines}
 				else {help -ex $PSCmdlet.MyInvocation.MyCommand.Name}
 				return
 			}
